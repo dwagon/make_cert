@@ -1,5 +1,5 @@
 # See https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
-.PHONY: root_cert intermediate_cert intermediate_chain server_cert
+.PHONY: root_cert intermediate_cert intermediate_chain server_cert intermediate_crl
 ROOT_DIR := root-ca
 ROOT_CONF := openssl_root.conf 
 
@@ -71,6 +71,16 @@ intermediate_chain: ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/cert
 	/bin/rm -f ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert > ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	chmod 444 ${INTERMEDIATE_DIR}/certs/ca-chain.cert
+
+################################################################################
+intermediate_crl: ${INTERMEDIATE_DIR}/crl/intermediate.crl
+
+${INTERMEDIATE_DIR}/crl/intermediate.crl: ${INTERMEDIATE_DIR}/certs/intermediate.cert
+	@ echo "Making CRL"
+	-@ [ ! -d ${INTERMEDIATE_DIR}/crl ] && mkdir ${INTERMEDIATE_DIR}/crl
+	echo "1000" > ${INTERMEDIATE_DIR}/crlnumber
+	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -out ${INTERMEDIATE_DIR}/crl/intermediate.crl
+
 
 ################################################################################
 server_cert: ${INTERMEDIATE_DIR}/certs/server.cert
