@@ -10,13 +10,14 @@ all: root_cert intermediate_cert
 ################################################################################
 root_cert: ${ROOT_DIR}/certs/ca.cert
 
-${ROOT_DIR}:
+${ROOT_DIR}/.created:
 	-@ [ ! -d ${ROOT_DIR} ] && mkdir ${ROOT_DIR}
 	-@ [ ! -d ${ROOT_DIR}/newcerts ] && mkdir ${ROOT_DIR}/newcerts
 	touch ${ROOT_DIR}/index.txt
 	echo 1000 > ${ROOT_DIR}/serial
+	@ touch ${ROOT_DIR}/.created
 
-${ROOT_DIR}/private/ca.key: ${ROOT_DIR}
+${ROOT_DIR}/private/ca.key: ${ROOT_DIR}/.created
 	@ echo "Making Root Key"
 	-@ [ ! -d ${ROOT_DIR}/private ] && mkdir ${ROOT_DIR}/private
 	chmod 0700 ${ROOT_DIR}/private
@@ -59,6 +60,7 @@ ${INTERMEDIATE_DIR}/certs/intermediate.cert: ${INTERMEDIATE_DIR}/csr/intermediat
 
 ################################################################################
 intermediate_chain: ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert
+	@ echo "Making intermediate chain"
 	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert > ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	chmod 444 ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 
