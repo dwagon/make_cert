@@ -5,7 +5,7 @@ INTERMEDIATE_DIR := intermediate
 INTERMEDIATE_CONF := openssl_intermediate.conf 
 
 
-all: root_cert intermediate_cert
+all: root_cert intermediate_cert intermediate_chain
 
 ################################################################################
 root_cert: ${ROOT_DIR}/certs/ca.cert
@@ -35,13 +35,14 @@ ${ROOT_DIR}/certs/ca.cert: ${ROOT_DIR}/private/ca.key
 ################################################################################
 intermediate_cert: ${INTERMEDIATE_DIR}/certs/intermediate.cert
 
-${INTERMEDIATE_DIR}:
+${INTERMEDIATE_DIR}/.created:
 	-@ [ ! -d ${INTERMEDIATE_DIR} ] && mkdir ${INTERMEDIATE_DIR}
+	@ touch ${INTERMEDIATE_DIR}/.created
 
-${INTERMEDIATE_DIR}/private/intermediate.key: ${INTERMEDIATE_DIR}
+${INTERMEDIATE_DIR}/private/intermediate.key: ${INTERMEDIATE_DIR}/.created
 	@ echo "Making intermediate key"
 	-@ [ ! -d ${INTERMEDIATE_DIR}/private ] && mkdir ${INTERMEDIATE_DIR}/private
-	openssl genrsa -aes256 -out ${INTERMEDIATE_DIR}/private/intermediate.key 4096
+	openssl genrsa -out ${INTERMEDIATE_DIR}/private/intermediate.key 4096
 	chmod 0400 ${INTERMEDIATE_DIR}/private/intermediate.key
 
 ${INTERMEDIATE_DIR}/csr/intermediate.csr: ${INTERMEDIATE_DIR}/private/intermediate.key
