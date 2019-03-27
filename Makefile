@@ -12,6 +12,7 @@ root_cert: ${ROOT_DIR}/certs/ca.cert
 
 ${ROOT_DIR}:
 	-@ [ ! -d ${ROOT_DIR} ] && mkdir ${ROOT_DIR}
+	-@ [ ! -d ${ROOT_DIR}/newcerts ] && mkdir ${ROOT_DIR}/newcerts
 	touch ${ROOT_DIR}/index.txt
 	echo 1000 > ${ROOT_DIR}/serial
 
