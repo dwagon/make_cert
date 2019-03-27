@@ -57,4 +57,10 @@ ${INTERMEDIATE_DIR}/certs/intermediate.cert: ${INTERMEDIATE_DIR}/csr/intermediat
 	openssl x509 -noout -text -in ${INTERMEDIATE_DIR}/certs/intermediate.cert
 	openssl verify -CAfile ${ROOT_DIR}/certs/ca.cert ${INTERMEDIATE_DIR}/certs/intermediate.cert
 
+################################################################################
+intermediate_chain: ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert
+	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert > ${INTERMEDIATE_DIR}/certs/ca-chain.cert
+	chmod 444 ${INTERMEDIATE_DIR}/certs/ca-chain.cert
+
+
 # vim: set noet:
