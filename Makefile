@@ -1,4 +1,5 @@
 # See https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
+.PHONY: root_cert intermediate_cert intermediate_chain server_cert
 ROOT_DIR := root-ca
 ROOT_CONF := openssl_root.conf 
 
@@ -40,6 +41,7 @@ ${INTERMEDIATE_DIR}/.created:
 	-@ [ ! -d ${INTERMEDIATE_DIR} ] && mkdir ${INTERMEDIATE_DIR}
 	-@ [ ! -d ${INTERMEDIATE_DIR}/newcerts ] && mkdir ${INTERMEDIATE_DIR}/newcerts
 	touch ${INTERMEDIATE_DIR}/index.txt
+	echo "unique_subject = yes" > ${INTERMEDIATE_DIR}/index.txt.attr
 	echo 1000 > ${INTERMEDIATE_DIR}/serial
 	@ touch ${INTERMEDIATE_DIR}/.created
 
@@ -66,6 +68,7 @@ ${INTERMEDIATE_DIR}/certs/intermediate.cert: ${INTERMEDIATE_DIR}/csr/intermediat
 ################################################################################
 intermediate_chain: ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert
 	@ echo "Making intermediate chain"
+	/bin/rm -f ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert ${ROOT_DIR}/certs/ca.cert > ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	chmod 444 ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 
@@ -81,10 +84,11 @@ ${INTERMEDIATE_DIR}/csr/server.csr: ${INTERMEDIATE_DIR}/private/server.key
 	@ echo "Making server CSR"
 	openssl req -config ${INTERMEDIATE_CONF} -key ${INTERMEDIATE_DIR}/private/server.key -new -sha256 -out ${INTERMEDIATE_DIR}/csr/server.csr
 
-${INTERMEDIATE_DIR}/certs/server.cert: ${INTERMEDIATE_DIR}/csr/server.csr
+${INTERMEDIATE_DIR}/certs/server.cert: ${INTERMEDIATE_DIR}/csr/server.csr ${INTERMEDIATE_DIR}/certs/ca-chain.cert
 	@ echo "Making server cert"
 	openssl ca -config ${INTERMEDIATE_CONF} -extensions server_cert -days 375 -notext -md sha256 -in ${INTERMEDIATE_DIR}/csr/server.csr -out ${INTERMEDIATE_DIR}/certs/server.cert
 	chmod 444 ${INTERMEDIATE_DIR}/certs/server.cert
 	openssl x509 -noout -text -in ${INTERMEDIATE_DIR}/certs/server.cert
+	openssl verify -CAfile ${INTERMEDIATE_DIR}/certs/ca-chain.cert ${INTERMEDIATE_DIR}/certs/server.cert
 
 # vim: set noet:
