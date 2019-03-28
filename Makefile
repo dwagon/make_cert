@@ -103,7 +103,7 @@ ${INTERMEDIATE_DIR}/certs/server.cert.pem: ${INTERMEDIATE_DIR}/csr/server.csr.pe
 	openssl ca -config ${INTERMEDIATE_CONF} -extensions server_cert -days 375 -notext -md sha256 -in ${INTERMEDIATE_DIR}/csr/server.csr.pem -out ${INTERMEDIATE_DIR}/certs/server.cert.pem
 	chmod 444 ${INTERMEDIATE_DIR}/certs/server.cert.pem
 	openssl x509 -noout -text -in ${INTERMEDIATE_DIR}/certs/server.cert.pem
-	openssl verify -CAfile ${OuTPUT_DIR}/ca-chain.cert.pem ${INTERMEDIATE_DIR}/certs/server.cert.pem
+	openssl verify -CAfile ${OUTPUT_DIR}/ca-chain.cert.pem ${INTERMEDIATE_DIR}/certs/server.cert.pem
 
 ################################################################################
 outputs: ${OUTPUT_DIR}/crl_chains.pem ${OUTPUT_DIR}/ca-chain.cert.pem
