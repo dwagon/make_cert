@@ -80,6 +80,7 @@ ${INTERMEDIATE_DIR}/crl/intermediate.crl: ${INTERMEDIATE_DIR}/certs/intermediate
 	-@ [ ! -d ${INTERMEDIATE_DIR}/crl ] && mkdir ${INTERMEDIATE_DIR}/crl
 	echo "1000" > ${INTERMEDIATE_DIR}/crlnumber
 	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -out ${INTERMEDIATE_DIR}/crl/intermediate.crl
+	openssl crl -in ${INTERMEDIATE_DIR}/crl/intermediate.crl -noout -text
 
 
 ################################################################################
