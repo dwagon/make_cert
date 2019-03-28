@@ -1,13 +1,14 @@
 # See https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
-.PHONY: root_cert intermediate_cert intermediate_chain server_cert intermediate_crl root_crl destroy
+.PHONY: root_cert intermediate_cert server_cert intermediate_crl root_crl destroy outputs
 ROOT_DIR := root-ca
 ROOT_CONF := openssl_root.conf 
 
 INTERMEDIATE_DIR := intermediate
 INTERMEDIATE_CONF := openssl_intermediate.conf 
 
+OUTPUT_DIR := output
 
-all: root_cert intermediate_cert intermediate_chain server_cert
+all: root_cert intermediate_cert server_cert outputs
 
 ################################################################################
 root_cert: ${ROOT_DIR}/certs/ca.cert.pem
@@ -34,14 +35,14 @@ ${ROOT_DIR}/certs/ca.cert.pem: ${ROOT_DIR}/private/ca.key.pem
 	openssl x509 -noout -text -in ${ROOT_DIR}/certs/ca.cert.pem
 
 ################################################################################
-root_crl: ${ROOT_DIR}/crl/root.crl
+root_crl: ${ROOT_DIR}/crl/ca.crl.pem
 
-${ROOT_DIR}/crl/root.crl: ${ROOT_DIR}/certs/ca.cert.pem
+${ROOT_DIR}/crl/ca.crl.pem: ${ROOT_DIR}/certs/ca.cert.pem
 	@ echo "Making CA CRL"
 	-@ [ ! -d ${ROOT_DIR}/crl ] && mkdir ${ROOT_DIR}/crl
 	echo "1000" > ${ROOT_DIR}/crlnumber
-	openssl ca -config ${ROOT_CONF} -gencrl -out ${ROOT_DIR}/crl/root.crl
-	openssl crl -in ${ROOT_DIR}/crl/root.crl -noout -text
+	openssl ca -config ${ROOT_CONF} -gencrl -out ${ROOT_DIR}/crl/ca.crl.pem
+	openssl crl -in ${ROOT_DIR}/crl/ca.crl.pem -noout -text
 
 ################################################################################
 intermediate_cert: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
@@ -74,22 +75,16 @@ ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem: ${INTERMEDIATE_DIR}/csr/interme
 	openssl x509 -noout -text -in ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
 	openssl verify -CAfile ${ROOT_DIR}/certs/ca.cert.pem ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
 
-################################################################################
-intermediate_chain: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem
-	@ echo "Making intermediate chain"
-	/bin/rm -f ${INTERMEDIATE_DIR}/certs/ca-chain.cert.pem
-	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem > ${INTERMEDIATE_DIR}/certs/ca-chain.cert.pem
-	chmod 444 ${INTERMEDIATE_DIR}/certs/ca-chain.cert.pem
 
 ################################################################################
-intermediate_crl: ${INTERMEDIATE_DIR}/crl/intermediate.crl
+intermediate_crl: ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
 
-${INTERMEDIATE_DIR}/crl/intermediate.crl: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
+${INTERMEDIATE_DIR}/crl/intermediate.crl.pem: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
 	@ echo "Making CRL"
 	-@ [ ! -d ${INTERMEDIATE_DIR}/crl ] && mkdir ${INTERMEDIATE_DIR}/crl
 	echo "1000" > ${INTERMEDIATE_DIR}/crlnumber
-	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -out ${INTERMEDIATE_DIR}/crl/intermediate.crl
-	openssl crl -in ${INTERMEDIATE_DIR}/crl/intermediate.crl -noout -text
+	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -out ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
+	openssl crl -in ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem -noout -text
 
 ################################################################################
 server_cert: ${INTERMEDIATE_DIR}/certs/server.cert.pem
@@ -103,15 +98,30 @@ ${INTERMEDIATE_DIR}/csr/server.csr.pem: ${INTERMEDIATE_DIR}/private/server.key.p
 	@ echo "Making server CSR"
 	openssl req -config ${INTERMEDIATE_CONF} -key ${INTERMEDIATE_DIR}/private/server.key.pem -new -sha256 -out ${INTERMEDIATE_DIR}/csr/server.csr.pem
 
-${INTERMEDIATE_DIR}/certs/server.cert.pem: ${INTERMEDIATE_DIR}/csr/server.csr.pem ${INTERMEDIATE_DIR}/certs/ca-chain.cert.pem
+${INTERMEDIATE_DIR}/certs/server.cert.pem: ${INTERMEDIATE_DIR}/csr/server.csr.pem ${OUTPUT_DIR}/ca-chain.cert.pem
 	@ echo "Making server cert"
 	openssl ca -config ${INTERMEDIATE_CONF} -extensions server_cert -days 375 -notext -md sha256 -in ${INTERMEDIATE_DIR}/csr/server.csr.pem -out ${INTERMEDIATE_DIR}/certs/server.cert.pem
 	chmod 444 ${INTERMEDIATE_DIR}/certs/server.cert.pem
 	openssl x509 -noout -text -in ${INTERMEDIATE_DIR}/certs/server.cert.pem
-	openssl verify -CAfile ${INTERMEDIATE_DIR}/certs/ca-chain.cert.pem ${INTERMEDIATE_DIR}/certs/server.cert.pem
+	openssl verify -CAfile ${OuTPUT_DIR}/ca-chain.cert.pem ${INTERMEDIATE_DIR}/certs/server.cert.pem
+
+################################################################################
+outputs: ${OUTPUT_DIR}/crl_chains.pem ${OUTPUT_DIR}/ca-chain.cert.pem
+
+${OUTPUT_DIR}/crl_chains.pem: ${ROOT_DIR}/crl/ca.crl.pem ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
+	@ echo "Making crl chains"
+	-@ [ ! -d ${OUTPUT_DIR} ] && mkdir ${OUTPUT_DIR}
+	cat ${ROOT_DIR}/crl/ca.crl.pem ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem > ${OUTPUT_DIR}/crl_chains.pem
+
+${OUTPUT_DIR}/ca-chain.cert.pem: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem
+	@ echo "Making cert bundle"
+	-@ [ ! -d ${OUTPUT_DIR} ] && mkdir ${OUTPUT_DIR}
+	/bin/rm -f ${OUTPUT_DIR}/ca-chain.cert.pem
+	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem > ${OUTPUT_DIR}/ca-chain.cert.pem
+	chmod 444 ${OUTPUT_DIR}/ca-chain.cert.pem
 
 ################################################################################
 destroy:
-	/bin/rm -r ${INTERMEDIATE_DIR} ${ROOT_DIR}
+	/bin/rm -rf ${INTERMEDIATE_DIR} ${ROOT_DIR} ${OUTPUT_DIR}
 
 # vim: set noet:
