@@ -1,3 +1,4 @@
 root-ca/*
 intermediate/*
 output/*
+puppet/*

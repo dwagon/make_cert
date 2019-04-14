@@ -1,14 +1,14 @@
 # See https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
-.PHONY: root_cert intermediate_cert server_cert intermediate_crl root_crl destroy outputs
+.PHONY: root_cert intermediate_cert server_cert intermediate_crl root_crl destroy outputs puppet
 ROOT_DIR := root-ca
-ROOT_CONF := openssl_root.conf 
+ROOT_CONF := openssl_root.conf
 
 INTERMEDIATE_DIR := intermediate
-INTERMEDIATE_CONF := openssl_intermediate.conf 
+INTERMEDIATE_CONF := openssl_intermediate.conf
 
 OUTPUT_DIR := output
 
-all: root_cert intermediate_cert server_cert outputs
+all: root_cert intermediate_cert outputs
 
 ################################################################################
 root_cert: ${ROOT_DIR}/certs/ca.cert.pem
@@ -83,7 +83,7 @@ ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem: ${INTERMEDIATE_DIR}/certs/intermed
 	@ echo "Making CRL"
 	-@ [ ! -d ${INTERMEDIATE_DIR}/crl ] && mkdir ${INTERMEDIATE_DIR}/crl
 	echo "1000" > ${INTERMEDIATE_DIR}/crlnumber
-	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -out ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
+	openssl ca -config ${INTERMEDIATE_CONF} -gencrl -keyfile ${INTERMEDIATE_DIR}/private/intermediate.key.pem -out ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
 	openssl crl -in ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem -noout -text
 
 ################################################################################
@@ -111,7 +111,7 @@ outputs: ${OUTPUT_DIR}/crl_chains.pem ${OUTPUT_DIR}/ca-chain.cert.pem
 ${OUTPUT_DIR}/crl_chains.pem: ${ROOT_DIR}/crl/ca.crl.pem ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem
 	@ echo "Making crl chains"
 	-@ [ ! -d ${OUTPUT_DIR} ] && mkdir ${OUTPUT_DIR}
-	cat ${ROOT_DIR}/crl/ca.crl.pem ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem > ${OUTPUT_DIR}/crl_chains.pem
+	cat ${INTERMEDIATE_DIR}/crl/intermediate.crl.pem ${ROOT_DIR}/crl/ca.crl.pem  > ${OUTPUT_DIR}/crl_chains.pem
 
 ${OUTPUT_DIR}/ca-chain.cert.pem: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem
 	@ echo "Making cert bundle"
@@ -119,6 +119,22 @@ ${OUTPUT_DIR}/ca-chain.cert.pem: ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem
 	/bin/rm -f ${OUTPUT_DIR}/ca-chain.cert.pem
 	cat ${INTERMEDIATE_DIR}/certs/intermediate.cert.pem ${ROOT_DIR}/certs/ca.cert.pem > ${OUTPUT_DIR}/ca-chain.cert.pem
 	chmod 444 ${OUTPUT_DIR}/ca-chain.cert.pem
+
+################################################################################
+puppet: puppet/.created puppet/bundle.pem puppet/crls.pem puppet/intermediate_key.pem
+
+puppet/.created:
+	-@ [ ! -d puppet ] && mkdir puppet
+	@ touch puppet/.created
+
+puppet/bundle.pem: ${OUTPUT_DIR}/ca-chain.cert.pem
+	cp ${OUTPUT_DIR}/ca-chain.cert.pem puppet/bundle.pem
+
+puppet/crls.pem: ${OUTPUT_DIR}/crl_chains.pem
+	cp ${OUTPUT_DIR}/crl_chains.pem puppet/crls.pem
+
+puppet/intermediate_key.pem: ${INTERMEDIATE_DIR}/private/intermediate.key.pem
+	cp ${INTERMEDIATE_DIR}/private/intermediate.key.pem puppet/intermediate_key.pem
 
 ################################################################################
 destroy:
